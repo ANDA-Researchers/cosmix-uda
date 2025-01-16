@@ -5,10 +5,10 @@ model:
 
 source_dataset:
   version: "full"
-  name: "SynLiDAR"
-  dataset_path: "data/SynLiDAR"
-  mapping_path: "_resources/synlidar_semantickitti.yaml"
-  weights_path: "_weights/synlidar2semantickitti_correct.npy"
+  name: "nuScenes"
+  dataset_path: "data/nuscenes"
+  mapping_path: "_resources/nuscenes_ns2sk.yaml"
+  weights_path: "_weights/nuscenes2semantickitti_correct.npy"
   target: null
   voxel_size: 0.05
   num_pts: 80000
@@ -18,8 +18,8 @@ source_dataset:
 target_dataset:
   version: "full"
   name: "SemanticKITTI"
-  dataset_path: "data/SemanticKITTI/data/sequences"
-  mapping_path: "_resources/semantic-kitti.yaml"
+  dataset_path: "data/semantickitti"
+  mapping_path: "_resources/semantickitti_ns2sk.yaml"
   target: null
   voxel_size: 0.05
   num_pts: 80000
@@ -32,21 +32,21 @@ masked_dataset:
   remove_overlap: false
 
 pipeline:
-  epochs: 2
+  epochs: 3
   steps: null
   gpus: [0, 1]
   precision: 32
   seed: 1234
-  save_dir: "experiments/finetuning/synlidar/semantickitti"
+  save_dir: "experiments/cosmix/nuscenes/semantickitti"
 
   dataloader:
-    train_batch_size: 4
+    train_batch_size: 2
     val_batch_size: 8
-    num_workers: 10
+    num_workers: 24
 
   optimizer:
     name: "SGD"
-    lr: 0.0001
+    lr: 0.001
 
   scheduler:
     name: null
@@ -59,14 +59,14 @@ pipeline:
     num_sanity_val_steps: 2
 
   tb:
-    run_name: "FINETUNING-SSDA-SEMANTICKITTI-CUSTOM"
-    project_name: "cosmix-ssda"
+    run_name: "CoSMix-adaptation-nuScenes2SemanticKITTI"
+    project_name: "cosmix-uda"
     entity_name: "amazing-name"
-    offline: true
+    offline: false
 
 adaptation:
-  student_checkpoint: "pretrained_models/synlidar/semantickitti/pretrained_model.ckpt"
-  teacher_checkpoint: "pretrained_models/synlidar/semantickitti/pretrained_model.ckpt"
+  student_checkpoint: "pretrained_models/nuscenes/semantickitti/pretrained_model.ckpt"
+  teacher_checkpoint: "pretrained_models/nuscenes/semantickitti/pretrained_model.ckpt"
   filtering: "confidence"
   adaptive_weight: false
   oracle_rate: 0.0
@@ -83,10 +83,6 @@ adaptation:
   remove_class: null
   target_confidence_th: 0.90
 
-  ssda_sampler:
-    method: "custom"
-    num_frames: 2
-
   losses:
     source_criterion: "SoftDICELoss"
     target_criterion: "SoftDICELoss"
@@ -94,3 +90,8 @@ adaptation:
     source_weight: 1.0
     target_weight: 1.0
     other_weight: 0.
+
+  momentum:
+    base_tau: 0.9
+    final_tau: 0.9
+    update_every: 500

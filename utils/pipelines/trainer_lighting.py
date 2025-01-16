@@ -124,7 +124,7 @@ class PLTTrainer(pl.core.LightningModule):
 
         iou_tmp = jaccard_score(preds.detach().numpy(), labels.numpy(), average=None,
                                 labels=np.arange(0, self.num_classes),
-                                zero_division=-1)
+                                zero_division=0.)
 
         present_labels, class_occurs = np.unique(labels.numpy(), return_counts=True)
         present_labels = present_labels[present_labels != self.ignore_label]
@@ -235,7 +235,7 @@ class PLTTester(pl.core.LightningModule):
 
         iou_tmp = jaccard_score(preds.detach().cpu().numpy(), labels.cpu().numpy(), average=None,
                                 labels=np.arange(0, self.num_classes),
-                                zero_division=-0.1)
+                                zero_division=0.)
 
         present_labels, class_occurs = np.unique(labels.cpu().numpy(), return_counts=True)
         present_labels = present_labels[present_labels != self.ignore_label]
@@ -266,7 +266,7 @@ class PLTTester(pl.core.LightningModule):
 
                 iou_tmp = jaccard_score(p.cpu().numpy(), l.cpu().numpy(), average=None,
                                 labels=np.arange(0, self.num_classes),
-                                zero_division=-0.1)
+                                zero_division=0.)
 
                 present_labels, _ = np.unique(l.cpu().numpy(), return_counts=True)
                 present_labels = present_labels[present_labels != self.ignore_label]

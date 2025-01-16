@@ -10,13 +10,13 @@ from utils.datasets.dataset import BaseDataset
 ABSOLUTE_PATH = os.path.dirname(os.path.abspath(__file__))
 
 
-class SemanticKITTIDataset(BaseDataset):
+class NuScenesDataset(BaseDataset):
     def __init__(
         self,
         version: str = "full",
         phase: str = "train",
-        dataset_path: str = "/data/semantickitti/sequences",
-        mapping_path: str = "_resources/semantic-kitti.yaml",
+        dataset_path: str = "/data/nuscenes",
+        mapping_path: str = "_resources/nuscenes_ns2sk.yaml",
         weights_path: str = None,
         voxel_size: float = 0.05,
         use_intensity: bool = False,
@@ -43,22 +43,28 @@ class SemanticKITTIDataset(BaseDataset):
             weights_path=weights_path,
         )
 
+        with open(mapping_path, "r") as stream:
+            nuscenesyaml = yaml.safe_load(stream)
+
         if self.version == "full":
             self.split = {
-                "train": ["00", "01", "02", "03", "04", "05", "06", "07", "09", "10"],
-                "validation": ["08"],
+                "train": nuscenesyaml["split"]["train"],
+                "validation": nuscenesyaml["split"]["validation"],
             }
         elif self.version == "mini":
-            self.split = {"train": ["00", "01"], "validation": ["08"]}
+            self.split = {
+                "train": nuscenesyaml["split"]["mini_train"],
+                "validation": nuscenesyaml["split"]["mini_val"],
+            }
         elif self.version == "sequential":
             self.split = {
-                "train": ["00", "01", "02", "03", "04", "05", "06", "07", "09", "10"],
-                "validation": ["08"],
+                "train": nuscenesyaml["split"]["train"],
+                "validation": nuscenesyaml["split"]["validation"],
             }
         else:
             raise NotImplementedError
 
-        self.name = "SemanticKITTIDataset"
+        self.name = "nuScenesDataset"
         self.maps = yaml.safe_load(open(os.path.join(ABSOLUTE_PATH, mapping_path), "r"))
 
         self.pcd_path = []
@@ -73,56 +79,28 @@ class SemanticKITTIDataset(BaseDataset):
 
         for sequence in self.split[self.phase]:
             num_frames = len(
-                os.listdir(
-                    os.path.join(self.dataset_path, "sequences", sequence, "labels")
-                )
+                os.listdir(os.path.join(self.dataset_path, sequence, "labels"))
             )
 
             for f in np.arange(num_frames):
                 pcd_path = os.path.join(
                     self.dataset_path,
                     "sequences",
-                    sequence,
+                    f"{sequence:04d}",
                     "velodyne",
                     f"{int(f):06d}.bin",
                 )
                 label_path = os.path.join(
                     self.dataset_path,
                     "sequences",
-                    sequence,
+                    f"{sequence:04d}",
                     "labels",
                     f"{int(f):06d}.label",
                 )
                 self.pcd_path.append(pcd_path)
                 self.label_path.append(label_path)
 
-        self.color_map = (
-            np.array(
-                [
-                    (255, 255, 255),  # unlabelled
-                    (25, 25, 255),  # car
-                    (187, 0, 255),  # bicycle
-                    (187, 50, 255),  # motorcycle
-                    (0, 247, 255),  # truck
-                    (50, 162, 168),  # other-vehicle
-                    (250, 178, 50),  # person
-                    (255, 196, 0),  # bicyclist
-                    (255, 196, 0),  # motorcyclist
-                    (0, 0, 0),  # road
-                    (148, 148, 148),  # parking
-                    (255, 20, 60),  # sidewalk
-                    (164, 173, 104),  # other-ground
-                    (233, 166, 250),  # building
-                    (255, 214, 251),  # fence
-                    (157, 234, 50),  # vegetation
-                    (107, 98, 56),  # trunk
-                    (78, 72, 44),  # terrain
-                    (83, 93, 130),  # pole
-                    (173, 23, 121),
-                ]
-            )
-            / 255.0
-        )  # traffic-sign
+        self.color_map = np.array(nuscenesyaml["color_map"]) / 255.0
 
     def __len__(self):
         return len(self.pcd_path)

@@ -7,7 +7,7 @@ import torch
 from torch.utils.data import DataLoader
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
-from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.loggers import TensorBoardLogger
 import MinkowskiEngine as ME
 
 import utils.models as models
@@ -79,25 +79,26 @@ def train(config):
                            scheduler_name=config.pipeline.scheduler.name)
 
     run_time = time.strftime("%Y_%m_%d_%H:%M", time.gmtime())
-    if config.pipeline.wandb.run_name is not None:
-        run_name = run_time + '_' + config.pipeline.wandb.run_name
+    if config.pipeline.tb.run_name is not None:
+        run_name = run_time + '_' + config.pipeline.tb.run_name
     else:
         run_name = run_time
 
     save_dir = os.path.join(config.pipeline.save_dir, run_name)
 
-    wandb_logger = WandbLogger(project=config.pipeline.wandb.project_name,
-                               entity=config.pipeline.wandb.entity_name,
+    tb_logger = TensorBoardLogger(save_dir=config.pipeline.tb.project_name,
+                               # entity=config.pipeline.wandb.entity_name,
                                name=run_name,
-                               offline=config.pipeline.wandb.offline)
+                               # offline=config.pipeline.wandb.offline
+                               )
 
-    loggers = [wandb_logger]
+    loggers = [tb_logger]
 
     checkpoint_callback = [ModelCheckpoint(dirpath=os.path.join(save_dir, 'checkpoints'), save_top_k=-1)]
 
     trainer = Trainer(max_epochs=config.pipeline.epochs,
                       gpus=config.pipeline.gpus,
-                      accelerator="ddp",
+                      accelerator="gpu",
                       default_root_dir=config.pipeline.save_dir,
                       weights_save_path=save_dir,
                       precision=config.pipeline.precision,

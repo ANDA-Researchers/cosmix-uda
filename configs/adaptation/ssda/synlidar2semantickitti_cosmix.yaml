@@ -1,14 +1,14 @@
 model:
-  name: 'MinkUNet34'
+  name: "MinkUNet34"
   in_feat_size: 1
   out_classes: 19
 
 source_dataset:
-  version: 'full'
-  name: 'SynLiDAR'
-  dataset_path: 'data/SynLiDAR'
-  mapping_path: '_resources/synlidar_semantickitti.yaml'
-  weights_path: '_weights/synlidar2semantickitti_correct.npy'
+  version: "full"
+  name: "SynLiDAR"
+  dataset_path: "data/SynLiDAR"
+  mapping_path: "_resources/synlidar_semantickitti.yaml"
+  weights_path: "_weights/synlidar2semantickitti_correct.npy"
   target: null
   voxel_size: 0.05
   num_pts: 80000
@@ -16,10 +16,10 @@ source_dataset:
   augment_data: false
 
 target_dataset:
-  version: 'full'
-  name: 'SemanticKITTI'
-  dataset_path: 'data/SemanticKITTI/data/sequences'
-  mapping_path: '_resources/semantic-kitti.yaml'
+  version: "full"
+  name: "SemanticKITTI"
+  dataset_path: "data/SemanticKITTI/data/sequences"
+  mapping_path: "_resources/semantic-kitti.yaml"
   target: null
   voxel_size: 0.05
   num_pts: 80000
@@ -37,7 +37,7 @@ pipeline:
   gpus: [0, 1, 2, 3]
   precision: 32
   seed: 1234
-  save_dir: 'experiments/ssda/synlidar/semantickitti'
+  save_dir: "experiments/ssda/synlidar/semantickitti"
 
   dataloader:
     train_batch_size: 4
@@ -45,7 +45,7 @@ pipeline:
     num_workers: 16
 
   optimizer:
-    name: 'SGD'
+    name: "SGD"
     lr: 0.001
 
   scheduler:
@@ -58,16 +58,16 @@ pipeline:
     val_check_interval: 1.0
     num_sanity_val_steps: 2
 
-  wandb:
-    run_name: 'COSMIX-SSDA-SYNLIDAR2SEMANTICKITTI'
-    project_name: 'cosmix-ssda'
-    entity_name: 'amazing-name'
+  tb:
+    run_name: "COSMIX-SSDA-SYNLIDAR2SEMANTICKITTI"
+    project_name: "cosmix-ssda"
+    entity_name: "amazing-name"
     offline: true
 
 adaptation:
-  student_checkpoint: 'path/to/your/finetuned_model'
-  teacher_checkpoint: 'path/to/your/finetuned_model'
-  filtering: 'confidence'
+  student_checkpoint: "path/to/your/finetuned_model"
+  teacher_checkpoint: "path/to/your/finetuned_model"
+  filtering: "confidence"
   adaptive_weight: false
   oracle_rate: 0.0
   shuffle_batches: false
@@ -84,12 +84,12 @@ adaptation:
   target_confidence_th: 0.90
 
   ssda_sampler:
-    method: 'custom'
+    method: "custom"
     num_frames: 2
 
   losses:
-    source_criterion: 'SoftDICELoss'
-    target_criterion: 'SoftDICELoss'
+    source_criterion: "SoftDICELoss"
+    target_criterion: "SoftDICELoss"
     other_criterion: null
     source_weight: 1.0
     target_weight: 1.0
@@ -99,4 +99,3 @@ adaptation:
     base_tau: 0.9
     final_tau: 0.9
     update_every: 500
-

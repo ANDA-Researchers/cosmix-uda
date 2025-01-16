@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 from pytorch_lightning import Trainer
-from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.loggers import TensorBoardLogger
 import MinkowskiEngine as ME
 
 import utils.models as models
@@ -128,13 +128,13 @@ def test(config, resume_checkpoint):
                           save_predictions=args.save_predictions,
                           save_folder=save_preds_dir)
 
-    wandb_logger = WandbLogger(project=config.pipeline.wandb.project_name,
-                               entity=config.pipeline.wandb.entity_name,
+    tb_logger = TensorBoardLogger(project=config.pipeline.tb.project_name,
+                               entity=config.pipeline.tb.entity_name,
                                name=save_dir,
                                offline=True)
 
     os.makedirs(save_dir, exist_ok=True)
-    loggers = [wandb_logger]
+    loggers = [tb_logger]
 
     tester = Trainer(max_epochs=config.pipeline.epochs,
                      gpus=[0],
