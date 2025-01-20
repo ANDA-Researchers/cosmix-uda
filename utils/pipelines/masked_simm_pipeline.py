@@ -11,33 +11,35 @@ import open3d as o3d
 
 
 class SimMaskedAdaptation(pl.core.LightningModule):
-    def __init__(self,
-                 student_model,
-                 teacher_model,
-                 momentum_updater,
-                 training_dataset,
-                 source_validation_dataset,
-                 target_validation_dataset,
-                 optimizer_name="SGD",
-                 source_criterion='SoftDICELoss',
-                 target_criterion='SoftDiceLoss',
-                 other_criterion=None,
-                 source_weight=0.5,
-                 target_weight=0.5,
-                 filtering=None,
-                 lr=1e-3,
-                 train_batch_size=12,
-                 val_batch_size=12,
-                 weight_decay=1e-4,
-                 momentum=0.98,
-                 num_classes=19,
-                 clear_cache_int=2,
-                 scheduler_name=None,
-                 update_every=1,
-                 weighted_sampling=False,
-                 target_confidence_th=0.95,
-                 selection_perc=0.5,
-                 save_mix=False):
+    def __init__(
+        self,
+        student_model,
+        teacher_model,
+        momentum_updater,
+        training_dataset,
+        source_validation_dataset,
+        target_validation_dataset,
+        optimizer_name="SGD",
+        source_criterion="SoftDICELoss",
+        target_criterion="SoftDiceLoss",
+        other_criterion=None,
+        source_weight=0.5,
+        target_weight=0.5,
+        filtering=None,
+        lr=1e-3,
+        train_batch_size=12,
+        val_batch_size=12,
+        weight_decay=1e-4,
+        momentum=0.98,
+        num_classes=19,
+        clear_cache_int=2,
+        scheduler_name=None,
+        update_every=1,
+        weighted_sampling=False,
+        target_confidence_th=0.95,
+        selection_perc=0.5,
+        save_mix=False,
+    ):
 
         super().__init__()
         for name, value in list(vars().items()):
@@ -47,18 +49,26 @@ class SimMaskedAdaptation(pl.core.LightningModule):
         self.ignore_label = self.training_dataset.ignore_label
 
         # ########### LOSSES ##############
-        if source_criterion == 'CELoss':
-            self.source_criterion = CELoss(ignore_label=self.training_dataset.ignore_label, weight=None)
-        elif source_criterion == 'SoftDICELoss':
-            self.source_criterion = SoftDICELoss(ignore_label=self.training_dataset.ignore_label)
+        if source_criterion == "CELoss":
+            self.source_criterion = CELoss(
+                ignore_label=self.training_dataset.ignore_label, weight=None
+            )
+        elif source_criterion == "SoftDICELoss":
+            self.source_criterion = SoftDICELoss(
+                ignore_label=self.training_dataset.ignore_label
+            )
         else:
             raise NotImplementedError
 
         # ########### LOSSES ##############
-        if target_criterion == 'CELoss':
-            self.target_criterion = CELoss(ignore_label=self.training_dataset.ignore_label, weight=None)
-        elif target_criterion == 'SoftDICELoss':
-            self.target_criterion = SoftDICELoss(ignore_label=self.training_dataset.ignore_label)
+        if target_criterion == "CELoss":
+            self.target_criterion = CELoss(
+                ignore_label=self.training_dataset.ignore_label, weight=None
+            )
+        elif target_criterion == "SoftDICELoss":
+            self.target_criterion = SoftDICELoss(
+                ignore_label=self.training_dataset.ignore_label
+            )
         else:
             raise NotImplementedError
 
@@ -74,16 +84,24 @@ class SimMaskedAdaptation(pl.core.LightningModule):
         # self.target_pseudo_buffer = pseudo_buffer
 
         # init
-        self.save_hyperparameters(ignore=['teacher_model', 'student_model',
-                                          'training_dataset', 'source_validation_dataset',
-                                          'target_validation_dataset'])
+        self.save_hyperparameters(
+            ignore=[
+                "teacher_model",
+                "student_model",
+                "training_dataset",
+                "source_validation_dataset",
+                "target_validation_dataset",
+            ]
+        )
 
         # others
-        self.validation_phases = ['source_validation', 'target_validation']
+        self.validation_phases = ["source_validation", "target_validation"]
         # self.validation_phases = ['pseudo_target']
 
         self.class2mixed_names = self.training_dataset.class2names
-        self.class2mixed_names = np.append(self.class2mixed_names, ["target_label"], axis=0)
+        self.class2mixed_names = np.append(
+            self.class2mixed_names, ["target_label"], axis=0
+        )
 
         self.voxel_size = self.training_dataset.voxel_size
 
@@ -91,7 +109,7 @@ class SimMaskedAdaptation(pl.core.LightningModule):
 
         if self.training_dataset.weights is not None and self.weighted_sampling:
             tot = self.source_validation_dataset.weights.sum()
-            self.sampling_weights = 1 - self.source_validation_dataset.weights/tot
+            self.sampling_weights = 1 - self.source_validation_dataset.weights / tot
 
         else:
             self.sampling_weights = None
@@ -118,9 +136,13 @@ class SimMaskedAdaptation(pl.core.LightningModule):
 
         if sub_num is not None:
             if sub_num <= num_points:
-                sampled_idx = np.random.choice(np.arange(num_points), sub_num, replace=False)
+                sampled_idx = np.random.choice(
+                    np.arange(num_points), sub_num, replace=False
+                )
             else:
-                over_idx = np.random.choice(np.arange(num_points), sub_num - num_points, replace=False)
+                over_idx = np.random.choice(
+                    np.arange(num_points), sub_num - num_points, replace=False
+                )
                 sampled_idx = np.concatenate([np.arange(num_points), over_idx])
         else:
             sampled_idx = np.arange(num_points)
@@ -140,30 +162,48 @@ class SimMaskedAdaptation(pl.core.LightningModule):
         if not is_pseudo:
             if self.weighted_sampling and self.sampling_weights is not None:
 
-                sampling_weights = self.sampling_weights[origin_classes] * (1/self.sampling_weights[origin_classes].sum())
+                sampling_weights = self.sampling_weights[origin_classes] * (
+                    1 / self.sampling_weights[origin_classes].sum()
+                )
 
-                selected_classes = np.random.choice(origin_classes, num_classes,
-                                                    replace=False, p=sampling_weights)
+                selected_classes = np.random.choice(
+                    origin_classes, num_classes, replace=False, p=sampling_weights
+                )
 
             else:
-                selected_classes = np.random.choice(origin_classes, num_classes, replace=False)
+                selected_classes = np.random.choice(
+                    origin_classes, num_classes, replace=False
+                )
 
         else:
             selected_classes = origin_classes
 
         return selected_classes
 
-    def mask(self, origin_pts, origin_labels, origin_features,
-             dest_pts, dest_labels, dest_features, is_pseudo=False):
+    def mask(
+        self,
+        origin_pts,
+        origin_labels,
+        origin_features,
+        dest_pts,
+        dest_labels,
+        dest_features,
+        is_pseudo=False,
+    ):
 
+        mask = np.ones(dest_pts.shape[0])
         # to avoid when filtered labels are all -1
         if (origin_labels == -1).sum() < origin_labels.shape[0]:
             origin_present_classes = np.unique(origin_labels)
-            origin_present_classes = origin_present_classes[origin_present_classes != -1]
+            origin_present_classes = origin_present_classes[
+                origin_present_classes != -1
+            ]
 
             num_classes = int(self.selection_perc * origin_present_classes.shape[0])
 
-            selected_classes = self.sample_classes(origin_present_classes, num_classes, is_pseudo)
+            selected_classes = self.sample_classes(
+                origin_present_classes, num_classes, is_pseudo
+            )
 
             selected_idx = []
             selected_pts = []
@@ -200,11 +240,18 @@ class SimMaskedAdaptation(pl.core.LightningModule):
                     class_pts = class_pts[random_idx]
 
                     # get transformation
-                    voxel_mtx, affine_mtx = self.training_dataset.mask_voxelizer.get_transformation_matrix()
+                    voxel_mtx, affine_mtx = (
+                        self.training_dataset.mask_voxelizer.get_transformation_matrix()
+                    )
 
                     rigid_transformation = affine_mtx @ voxel_mtx
                     # apply transformations
-                    homo_coords = np.hstack((class_pts, np.ones((class_pts.shape[0], 1), dtype=class_pts.dtype)))
+                    homo_coords = np.hstack(
+                        (
+                            class_pts,
+                            np.ones((class_pts.shape[0], 1), dtype=class_pts.dtype),
+                        )
+                    )
                     class_pts = homo_coords @ rigid_transformation.T[:, :3]
                     class_labels = np.ones_like(origin_labels[class_idx]) * sc
                     class_features = origin_features[class_idx]
@@ -224,47 +271,53 @@ class SimMaskedAdaptation(pl.core.LightningModule):
                 dest_idx = dest_pts.shape[0]
                 dest_pts = np.concatenate([dest_pts, selected_pts], axis=0)
                 dest_labels = np.concatenate([dest_labels, selected_labels], axis=0)
-                dest_features = np.concatenate([dest_features, selected_features], axis=0)
-
-                mask = np.ones(dest_pts.shape[0])
+                dest_features = np.concatenate(
+                    [dest_features, selected_features], axis=0
+                )
                 mask[:dest_idx] = 0
 
             if self.training_dataset.augment_data:
                 # get transformation
-                voxel_mtx, affine_mtx = self.training_dataset.voxelizer.get_transformation_matrix()
+                voxel_mtx, affine_mtx = (
+                    self.training_dataset.voxelizer.get_transformation_matrix()
+                )
                 rigid_transformation = affine_mtx @ voxel_mtx
                 # apply transformations
-                homo_coords = np.hstack((dest_pts, np.ones((dest_pts.shape[0], 1), dtype=dest_pts.dtype)))
+                homo_coords = np.hstack(
+                    (dest_pts, np.ones((dest_pts.shape[0], 1), dtype=dest_pts.dtype))
+                )
                 dest_pts = homo_coords @ rigid_transformation.T[:, :3]
 
         return dest_pts, dest_labels, dest_features, mask.astype(np.bool)
 
     def mask_data(self, batch, is_oracle=False):
         # source
-        batch_source_pts = batch['source_coordinates'].cpu().numpy()
-        batch_source_labels = batch['source_labels'].cpu().numpy()
-        batch_source_features = batch['source_features'].cpu().numpy()
+        batch_source_pts = batch["source_coordinates"].cpu().numpy()
+        batch_source_labels = batch["source_labels"].cpu().numpy()
+        batch_source_features = batch["source_features"].cpu().numpy()
 
         # target
-        batch_target_idx = batch['target_coordinates'][:, 0].cpu().numpy()
-        batch_target_pts = batch['target_coordinates'].cpu().numpy()
+        batch_target_idx = batch["target_coordinates"][:, 0].cpu().numpy()
+        batch_target_pts = batch["target_coordinates"].cpu().numpy()
 
-        batch_target_features = batch['target_features'].cpu().numpy()
+        batch_target_features = batch["target_features"].cpu().numpy()
 
         batch_size = int(np.max(batch_target_idx).item() + 1)
 
         if is_oracle:
-            batch_target_labels = batch['target_labels'].cpu().numpy()
+            batch_target_labels = batch["target_labels"].cpu().numpy()
 
         else:
-            batch_target_labels = batch['pseudo_labels'].cpu().numpy()
+            batch_target_labels = batch["pseudo_labels"].cpu().numpy()
 
-        new_batch = {'masked_target_pts': [],
-                     'masked_target_labels': [],
-                     'masked_target_features': [],
-                     'masked_source_pts': [],
-                     'masked_source_labels': [],
-                     'masked_source_features': []}
+        new_batch = {
+            "masked_target_pts": [],
+            "masked_target_labels": [],
+            "masked_target_features": [],
+            "masked_source_pts": [],
+            "masked_source_labels": [],
+            "masked_source_features": [],
+        }
 
         target_order = np.arange(batch_size)
 
@@ -283,55 +336,95 @@ class SimMaskedAdaptation(pl.core.LightningModule):
             target_labels = batch_target_labels[target_b_idx]
             target_features = batch_target_features[target_b_idx]
 
-            masked_target_pts, masked_target_labels, masked_target_features, masked_target_mask = self.mask(origin_pts=source_pts,
-                                                                                                            origin_labels=source_labels,
-                                                                                                            origin_features=source_features,
-                                                                                                            dest_pts=target_pts,
-                                                                                                            dest_labels=target_labels,
-                                                                                                            dest_features=target_features)
+            (
+                masked_target_pts,
+                masked_target_labels,
+                masked_target_features,
+                masked_target_mask,
+            ) = self.mask(
+                origin_pts=source_pts,
+                origin_labels=source_labels,
+                origin_features=source_features,
+                dest_pts=target_pts,
+                dest_labels=target_labels,
+                dest_features=target_features,
+            )
 
-            masked_source_pts, masked_source_labels, masked_source_features, masked_source_mask = self.mask(origin_pts=target_pts,
-                                                                                                            origin_labels=target_labels,
-                                                                                                            origin_features=target_features,
-                                                                                                            dest_pts=source_pts,
-                                                                                                            dest_labels=source_labels,
-                                                                                                            dest_features=source_features,
-                                                                                                            is_pseudo=True)
+            (
+                masked_source_pts,
+                masked_source_labels,
+                masked_source_features,
+                masked_source_mask,
+            ) = self.mask(
+                origin_pts=target_pts,
+                origin_labels=target_labels,
+                origin_features=target_features,
+                dest_pts=source_pts,
+                dest_labels=source_labels,
+                dest_features=source_features,
+                is_pseudo=True,
+            )
 
             if self.save_mix:
-                os.makedirs('trial_viz_mix_paper', exist_ok=True)
-                os.makedirs('trial_viz_mix_paper/s2t', exist_ok=True)
-                os.makedirs('trial_viz_mix_paper/t2s', exist_ok=True)
-                os.makedirs('trial_viz_mix_paper/source', exist_ok=True)
-                os.makedirs('trial_viz_mix_paper/target', exist_ok=True)
+                os.makedirs("trial_viz_mix_paper", exist_ok=True)
+                os.makedirs("trial_viz_mix_paper/s2t", exist_ok=True)
+                os.makedirs("trial_viz_mix_paper/t2s", exist_ok=True)
+                os.makedirs("trial_viz_mix_paper/source", exist_ok=True)
+                os.makedirs("trial_viz_mix_paper/target", exist_ok=True)
 
                 source_pcd = o3d.geometry.PointCloud()
                 valid_source = source_labels != -1
                 source_pcd.points = o3d.utility.Vector3dVector(source_pts[valid_source])
-                source_pcd.colors = o3d.utility.Vector3dVector(self.source_validation_dataset.color_map[source_labels[valid_source]+1])
+                source_pcd.colors = o3d.utility.Vector3dVector(
+                    self.source_validation_dataset.color_map[
+                        source_labels[valid_source] + 1
+                    ]
+                )
 
                 target_pcd = o3d.geometry.PointCloud()
                 target_pcd.points = o3d.utility.Vector3dVector(target_pts)
-                target_pcd.colors = o3d.utility.Vector3dVector(self.source_validation_dataset.color_map[target_labels+1])
+                target_pcd.colors = o3d.utility.Vector3dVector(
+                    self.source_validation_dataset.color_map[target_labels + 1]
+                )
 
                 s2t_pcd = o3d.geometry.PointCloud()
                 s2t_pcd.points = o3d.utility.Vector3dVector(masked_target_pts)
-                s2t_pcd.colors = o3d.utility.Vector3dVector(self.source_validation_dataset.color_map[masked_target_labels+1])
+                s2t_pcd.colors = o3d.utility.Vector3dVector(
+                    self.source_validation_dataset.color_map[masked_target_labels + 1]
+                )
 
                 t2s_pcd = o3d.geometry.PointCloud()
                 valid_source = masked_source_labels != -1
-                t2s_pcd.points = o3d.utility.Vector3dVector(masked_source_pts[valid_source])
-                t2s_pcd.colors = o3d.utility.Vector3dVector(self.source_validation_dataset.color_map[masked_source_labels[valid_source]+1])
+                t2s_pcd.points = o3d.utility.Vector3dVector(
+                    masked_source_pts[valid_source]
+                )
+                t2s_pcd.colors = o3d.utility.Vector3dVector(
+                    self.source_validation_dataset.color_map[
+                        masked_source_labels[valid_source] + 1
+                    ]
+                )
 
-                o3d.io.write_point_cloud(f'trial_viz_mix_paper/source/{self.trainer.global_step}_{b}.ply', source_pcd)
-                o3d.io.write_point_cloud(f'trial_viz_mix_paper/target/{self.trainer.global_step}_{b}.ply', target_pcd)
-                o3d.io.write_point_cloud(f'trial_viz_mix_paper/s2t/{self.trainer.global_step}_{b}.ply', s2t_pcd)
-                o3d.io.write_point_cloud(f'trial_viz_mix_paper/t2s/{self.trainer.global_step}_{b}.ply', t2s_pcd)
+                o3d.io.write_point_cloud(
+                    f"trial_viz_mix_paper/source/{self.trainer.global_step}_{b}.ply",
+                    source_pcd,
+                )
+                o3d.io.write_point_cloud(
+                    f"trial_viz_mix_paper/target/{self.trainer.global_step}_{b}.ply",
+                    target_pcd,
+                )
+                o3d.io.write_point_cloud(
+                    f"trial_viz_mix_paper/s2t/{self.trainer.global_step}_{b}.ply",
+                    s2t_pcd,
+                )
+                o3d.io.write_point_cloud(
+                    f"trial_viz_mix_paper/t2s/{self.trainer.global_step}_{b}.ply",
+                    t2s_pcd,
+                )
 
-                os.makedirs('trial_viz_mix_paper/s2t_mask', exist_ok=True)
-                os.makedirs('trial_viz_mix_paper/t2s_mask', exist_ok=True)
-                os.makedirs('trial_viz_mix_paper/source_mask', exist_ok=True)
-                os.makedirs('trial_viz_mix_paper/target_mask', exist_ok=True)
+                os.makedirs("trial_viz_mix_paper/s2t_mask", exist_ok=True)
+                os.makedirs("trial_viz_mix_paper/t2s_mask", exist_ok=True)
+                os.makedirs("trial_viz_mix_paper/source_mask", exist_ok=True)
+                os.makedirs("trial_viz_mix_paper/target_mask", exist_ok=True)
 
                 source_pcd.paint_uniform_color([1, 0.706, 0])
                 target_pcd.paint_uniform_color([0, 0.651, 0.929])
@@ -345,29 +438,47 @@ class SimMaskedAdaptation(pl.core.LightningModule):
 
                 t2s_pcd = o3d.geometry.PointCloud()
                 valid_source = masked_source_labels != -1
-                t2s_pcd.points = o3d.utility.Vector3dVector(masked_source_pts[valid_source])
+                t2s_pcd.points = o3d.utility.Vector3dVector(
+                    masked_source_pts[valid_source]
+                )
                 t2s_colors = np.zeros_like(masked_source_pts[valid_source])
                 masked_source_mask = masked_source_mask[valid_source]
                 t2s_colors[masked_source_mask] = [0, 0.651, 0.929]
                 t2s_colors[np.logical_not(masked_source_mask)] = [1, 0.706, 0]
                 t2s_pcd.colors = o3d.utility.Vector3dVector(t2s_colors)
 
-                o3d.io.write_point_cloud(f'trial_viz_mix_paper/source_mask/{self.trainer.global_step}_{b}.ply', source_pcd)
-                o3d.io.write_point_cloud(f'trial_viz_mix_paper/target_mask/{self.trainer.global_step}_{b}.ply', target_pcd)
-                o3d.io.write_point_cloud(f'trial_viz_mix_paper/s2t_mask/{self.trainer.global_step}_{b}.ply', s2t_pcd)
-                o3d.io.write_point_cloud(f'trial_viz_mix_paper/t2s_mask/{self.trainer.global_step}_{b}.ply', t2s_pcd)
+                o3d.io.write_point_cloud(
+                    f"trial_viz_mix_paper/source_mask/{self.trainer.global_step}_{b}.ply",
+                    source_pcd,
+                )
+                o3d.io.write_point_cloud(
+                    f"trial_viz_mix_paper/target_mask/{self.trainer.global_step}_{b}.ply",
+                    target_pcd,
+                )
+                o3d.io.write_point_cloud(
+                    f"trial_viz_mix_paper/s2t_mask/{self.trainer.global_step}_{b}.ply",
+                    s2t_pcd,
+                )
+                o3d.io.write_point_cloud(
+                    f"trial_viz_mix_paper/t2s_mask/{self.trainer.global_step}_{b}.ply",
+                    t2s_pcd,
+                )
 
-            _, _, _, masked_target_voxel_idx = ME.utils.sparse_quantize(coordinates=masked_target_pts,
-                                                                          features=masked_target_features,
-                                                                          labels=masked_target_labels,
-                                                                          quantization_size=self.training_dataset.voxel_size,
-                                                                          return_index=True)
+            _, _, _, masked_target_voxel_idx = ME.utils.sparse_quantize(
+                coordinates=masked_target_pts,
+                features=masked_target_features,
+                labels=masked_target_labels,
+                quantization_size=self.training_dataset.voxel_size,
+                return_index=True,
+            )
 
-            _, _, _, masked_source_voxel_idx = ME.utils.sparse_quantize(coordinates=masked_source_pts,
-                                                                      features=masked_source_features,
-                                                                      labels=masked_source_labels,
-                                                                      quantization_size=self.training_dataset.voxel_size,
-                                                                      return_index=True)
+            _, _, _, masked_source_voxel_idx = ME.utils.sparse_quantize(
+                coordinates=masked_source_pts,
+                features=masked_source_features,
+                labels=masked_source_labels,
+                quantization_size=self.training_dataset.voxel_size,
+                return_index=True,
+            )
 
             masked_target_pts = masked_target_pts[masked_target_voxel_idx]
             masked_target_labels = masked_target_labels[masked_target_voxel_idx]
@@ -377,38 +488,53 @@ class SimMaskedAdaptation(pl.core.LightningModule):
             masked_source_labels = masked_source_labels[masked_source_voxel_idx]
             masked_source_features = masked_source_features[masked_source_voxel_idx]
 
-            masked_target_pts = np.floor(masked_target_pts/self.training_dataset.voxel_size)
-            masked_source_pts = np.floor(masked_source_pts/self.training_dataset.voxel_size)
+            masked_target_pts = np.floor(
+                masked_target_pts / self.training_dataset.voxel_size
+            )
+            masked_source_pts = np.floor(
+                masked_source_pts / self.training_dataset.voxel_size
+            )
 
             batch_index = np.ones([masked_target_pts.shape[0], 1]) * b
-            masked_target_pts = np.concatenate([batch_index, masked_target_pts], axis=-1)
+            masked_target_pts = np.concatenate(
+                [batch_index, masked_target_pts], axis=-1
+            )
 
             batch_index = np.ones([masked_source_pts.shape[0], 1]) * b
-            masked_source_pts = np.concatenate([batch_index, masked_source_pts], axis=-1)
+            masked_source_pts = np.concatenate(
+                [batch_index, masked_source_pts], axis=-1
+            )
 
-            new_batch['masked_target_pts'].append(masked_target_pts)
-            new_batch['masked_target_labels'].append(masked_target_labels)
-            new_batch['masked_target_features'].append(masked_target_features)
-            new_batch['masked_source_pts'].append(masked_source_pts)
-            new_batch['masked_source_labels'].append(masked_source_labels)
-            new_batch['masked_source_features'].append(masked_source_features)
+            new_batch["masked_target_pts"].append(masked_target_pts)
+            new_batch["masked_target_labels"].append(masked_target_labels)
+            new_batch["masked_target_features"].append(masked_target_features)
+            new_batch["masked_source_pts"].append(masked_source_pts)
+            new_batch["masked_source_labels"].append(masked_source_labels)
+            new_batch["masked_source_features"].append(masked_source_features)
 
         for k, i in new_batch.items():
-            if k in ['masked_target_pts', 'masked_target_features', 'masked_source_pts', 'masked_source_features']:
-                new_batch[k] = torch.from_numpy(np.concatenate(i, axis=0)).to(self.device)
+            if k in [
+                "masked_target_pts",
+                "masked_target_features",
+                "masked_source_pts",
+                "masked_source_features",
+            ]:
+                new_batch[k] = torch.from_numpy(np.concatenate(i, axis=0)).to(
+                    self.device
+                )
             else:
                 new_batch[k] = torch.from_numpy(np.concatenate(i, axis=0))
 
         return new_batch
 
     def training_step(self, batch, batch_idx):
-        '''
+        """
         :param batch: training batch
         :param batch_idx: batch idx
         :return: None
-        '''
+        """
 
-        '''
+        """
         batch.keys():
             - source_coordinates
             - source_labels
@@ -418,28 +544,32 @@ class SimMaskedAdaptation(pl.core.LightningModule):
             - target_labels
             - target_features
             - target_idx
-        '''
+        """
         # Must clear cache at regular interval
         if self.global_step % self.clear_cache_int == 0:
             torch.cuda.empty_cache()
 
         # target batch
-        target_stensor = ME.SparseTensor(coordinates=batch['target_coordinates'].int(),
-                                         features=batch['target_features'])
+        target_stensor = ME.SparseTensor(
+            coordinates=batch["target_coordinates"].int(),
+            features=batch["target_features"],
+        )
 
-        target_labels = batch['target_labels'].long().cpu()
+        target_labels = batch["target_labels"].long().cpu()
 
-        source_stensor = ME.SparseTensor(coordinates=batch['source_coordinates'].int(),
-                                         features=batch['source_features'])
+        source_stensor = ME.SparseTensor(
+            coordinates=batch["source_coordinates"].int(),
+            features=batch["source_features"],
+        )
 
-        source_labels = batch['source_labels'].long().cpu()
+        source_labels = batch["source_labels"].long().cpu()
 
         self.teacher_model.eval()
         with torch.no_grad():
 
             target_pseudo = self.teacher_model(target_stensor).F.cpu()
 
-            if self.filtering == 'confidence':
+            if self.filtering == "confidence":
                 target_confidence_th = self.target_confidence_th
                 target_pseudo = F.softmax(target_pseudo, dim=-1)
                 target_conf, target_pseudo = target_pseudo.max(dim=-1)
@@ -452,15 +582,19 @@ class SimMaskedAdaptation(pl.core.LightningModule):
                 target_pseudo = F.softmax(target_pseudo, dim=-1)
                 target_conf, target_pseudo = target_pseudo.max(dim=-1)
 
-        batch['pseudo_labels'] = target_pseudo
-        batch['source_labels'] = source_labels
+        batch["pseudo_labels"] = target_pseudo
+        batch["source_labels"] = source_labels
         masked_batch = self.mask_data(batch, is_oracle=False)
 
-        s2t_stensor = ME.SparseTensor(coordinates=masked_batch["masked_target_pts"].int(),
-                                      features=masked_batch["masked_target_features"])
+        s2t_stensor = ME.SparseTensor(
+            coordinates=masked_batch["masked_target_pts"].int(),
+            features=masked_batch["masked_target_features"],
+        )
 
-        t2s_stensor = ME.SparseTensor(coordinates=masked_batch["masked_source_pts"].int(),
-                                      features=masked_batch["masked_source_features"])
+        t2s_stensor = ME.SparseTensor(
+            coordinates=masked_batch["masked_source_pts"].int(),
+            features=masked_batch["masked_source_features"],
+        )
 
         s2t_labels = masked_batch["masked_target_labels"]
         t2s_labels = masked_batch["masked_source_labels"]
@@ -473,23 +607,28 @@ class SimMaskedAdaptation(pl.core.LightningModule):
 
         final_loss = self.target_weight * s2t_loss + self.source_weight * t2s_loss
 
-        results_dict = {'s2t_loss': s2t_loss.detach(),
-                    't2s_loss': t2s_loss.detach()}
+        results_dict = {"s2t_loss": s2t_loss.detach(), "t2s_loss": t2s_loss.detach()}
 
         with torch.no_grad():
             self.student_model.eval()
             target_out = self.student_model(target_stensor).F.cpu()
             _, target_preds = target_out.max(dim=-1)
 
-            target_iou_tmp = jaccard_score(target_preds.numpy(), target_labels.numpy(), average=None,
-                                            labels=np.arange(0, self.num_classes),
-                                            zero_division=0.)
-            present_labels, class_occurs = np.unique(target_labels.numpy(), return_counts=True)
+            target_iou_tmp = jaccard_score(
+                target_preds.numpy(),
+                target_labels.numpy(),
+                average=None,
+                labels=np.arange(0, self.num_classes),
+                zero_division=0.0,
+            )
+            present_labels, class_occurs = np.unique(
+                target_labels.numpy(), return_counts=True
+            )
             present_labels = present_labels[present_labels != self.ignore_label]
             present_names = self.training_dataset.class2names[present_labels].tolist()
-            present_names = ['student/' + p + '_target_iou' for p in present_names]
+            present_names = ["student/" + p + "_target_iou" for p in present_names]
             results_dict.update(dict(zip(present_names, target_iou_tmp.tolist())))
-            results_dict['student/target_iou'] = np.mean(target_iou_tmp[present_labels])
+            results_dict["student/target_iou"] = np.mean(target_iou_tmp[present_labels])
 
         self.student_model.train()
 
@@ -497,11 +636,11 @@ class SimMaskedAdaptation(pl.core.LightningModule):
         correct = (target_pseudo[valid_idx] == target_labels[valid_idx]).sum()
         pseudo_acc = correct / valid_idx.sum()
 
-        results_dict['teacher/acc'] = pseudo_acc
-        results_dict['teacher/confidence'] = target_conf.mean()
+        results_dict["teacher/acc"] = pseudo_acc
+        results_dict["teacher/confidence"] = target_conf.mean()
 
         ann_pts = (target_pseudo != -1).sum()
-        results_dict['teacher/annotated_points'] = ann_pts/target_pseudo.shape[0]
+        results_dict["teacher/annotated_points"] = ann_pts / target_pseudo.shape[0]
 
         for k, v in results_dict.items():
             if not isinstance(v, torch.Tensor):
@@ -515,7 +654,7 @@ class SimMaskedAdaptation(pl.core.LightningModule):
                 sync_dist=True,
                 rank_zero_only=True,
                 batch_size=self.train_batch_size,
-                add_dataloader_idx=False
+                add_dataloader_idx=False,
             )
 
         return final_loss
@@ -530,7 +669,10 @@ class SimMaskedAdaptation(pl.core.LightningModule):
             batch_idx (int): index of the batch.
             dataloader_idx (int): index of the dataloader.
         """
-        if self.trainer.global_step > self.last_step and self.trainer.global_step % self.update_every == 0:
+        if (
+            self.trainer.global_step > self.last_step
+            and self.trainer.global_step % self.update_every == 0
+        ):
             # update momentum backbone and projector
             momentum_pairs = self.momentum_pairs
             for mp in momentum_pairs:
@@ -548,7 +690,9 @@ class SimMaskedAdaptation(pl.core.LightningModule):
     def validation_step(self, batch, batch_idx, dataloader_idx=0):
         phase = self.validation_phases[dataloader_idx]
         # input batch
-        stensor = ME.SparseTensor(coordinates=batch["coordinates"].int(), features=batch["features"])
+        stensor = ME.SparseTensor(
+            coordinates=batch["coordinates"].int(), features=batch["features"]
+        )
 
         # must clear cache at regular interval
         if self.global_step % self.clear_cache_int == 0:
@@ -556,8 +700,8 @@ class SimMaskedAdaptation(pl.core.LightningModule):
 
         out = self.student_model(stensor).F.cpu()
 
-        labels = batch['labels'].long().cpu()
-        if phase == 'source_validation':
+        labels = batch["labels"].long().cpu()
+        if phase == "source_validation":
             loss = self.source_criterion(out, labels)
         else:
             loss = self.target_criterion(out, labels)
@@ -566,18 +710,22 @@ class SimMaskedAdaptation(pl.core.LightningModule):
 
         conf, preds = soft_pseudo.max(1)
 
-        iou_tmp = jaccard_score(preds.detach().numpy(), labels.numpy(), average=None,
-                                labels=np.arange(0, self.num_classes),
-                                zero_division=0.)
+        iou_tmp = jaccard_score(
+            preds.detach().numpy(),
+            labels.numpy(),
+            average=None,
+            labels=np.arange(0, self.num_classes),
+            zero_division=0.0,
+        )
 
         present_labels, class_occurs = np.unique(labels.numpy(), return_counts=True)
         present_labels = present_labels[present_labels != self.ignore_label]
         present_names = self.training_dataset.class2names[present_labels].tolist()
-        present_names = [os.path.join(phase, p + '_iou') for p in present_names]
+        present_names = [os.path.join(phase, p + "_iou") for p in present_names]
         results_dict = dict(zip(present_names, iou_tmp.tolist()))
 
-        results_dict[f'{phase}/loss'] = loss
-        results_dict[f'{phase}/iou'] = np.mean(iou_tmp[present_labels])
+        results_dict[f"{phase}/loss"] = loss
+        results_dict[f"{phase}/iou"] = np.mean(iou_tmp[present_labels])
 
         for k, v in results_dict.items():
             if not isinstance(v, torch.Tensor):
@@ -593,54 +741,75 @@ class SimMaskedAdaptation(pl.core.LightningModule):
                 sync_dist=True,
                 rank_zero_only=True,
                 batch_size=self.val_batch_size,
-                add_dataloader_idx=False
+                add_dataloader_idx=False,
             )
 
     def configure_optimizers(self):
         if self.scheduler_name is None:
-            if self.optimizer_name == 'SGD':
-                optimizer = torch.optim.SGD(self.student_model.parameters(),
-                                            lr=self.lr,
-                                            momentum=self.momentum,
-                                            weight_decay=self.weight_decay,
-                                            nesterov=True)
-            elif self.optimizer_name == 'Adam':
-                optimizer = torch.optim.Adam(self.student_model.parameters(),
-                                             lr=self.lr,
-                                             weight_decay=self.weight_decay)
+            if self.optimizer_name == "SGD":
+                optimizer = torch.optim.SGD(
+                    self.student_model.parameters(),
+                    lr=self.lr,
+                    momentum=self.momentum,
+                    weight_decay=self.weight_decay,
+                    nesterov=True,
+                )
+            elif self.optimizer_name == "Adam":
+                optimizer = torch.optim.Adam(
+                    self.student_model.parameters(),
+                    lr=self.lr,
+                    weight_decay=self.weight_decay,
+                )
             else:
                 raise NotImplementedError
 
             return optimizer
         else:
-            if self.optimizer_name == 'SGD':
-                optimizer = torch.optim.SGD(self.student_model.parameters(),
-                                            lr=self.lr,
-                                            momentum=self.momentum,
-                                            weight_decay=self.weight_decay,
-                                            nesterov=True)
-            elif self.optimizer_name == 'Adam':
-                optimizer = torch.optim.Adam(self.student_model.parameters(),
-                                             lr=self.lr,
-                                             weight_decay=self.weight_decay)
+            if self.optimizer_name == "SGD":
+                optimizer = torch.optim.SGD(
+                    self.student_model.parameters(),
+                    lr=self.lr,
+                    momentum=self.momentum,
+                    weight_decay=self.weight_decay,
+                    nesterov=True,
+                )
+            elif self.optimizer_name == "Adam":
+                optimizer = torch.optim.Adam(
+                    self.student_model.parameters(),
+                    lr=self.lr,
+                    weight_decay=self.weight_decay,
+                )
             else:
                 raise NotImplementedError
 
-            if self.scheduler_name == 'CosineAnnealingLR':
-                scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=10)
-            elif self.scheduler_name == 'ExponentialLR':
-                scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
-            elif self.scheduler_name == 'CyclicLR':
-                scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=self.lr/10000, max_lr=self.lr,
-                                                              step_size_up=5, mode="triangular2")
-            elif self.scheduler_name == 'OneCycleLR':
-                steps_per_epoch = int(len(self.training_dataset) / self.train_batch_size)
-                scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.lr,
-                                                                steps_per_epoch=steps_per_epoch,
-                                                                epochs=self.trainer.max_epochs)
+            if self.scheduler_name == "CosineAnnealingLR":
+                scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                    optimizer, T_max=10
+                )
+            elif self.scheduler_name == "ExponentialLR":
+                scheduler = torch.optim.lr_scheduler.ExponentialLR(
+                    optimizer, gamma=0.99
+                )
+            elif self.scheduler_name == "CyclicLR":
+                scheduler = torch.optim.lr_scheduler.CyclicLR(
+                    optimizer,
+                    base_lr=self.lr / 10000,
+                    max_lr=self.lr,
+                    step_size_up=5,
+                    mode="triangular2",
+                )
+            elif self.scheduler_name == "OneCycleLR":
+                steps_per_epoch = int(
+                    len(self.training_dataset) / self.train_batch_size
+                )
+                scheduler = torch.optim.lr_scheduler.OneCycleLR(
+                    optimizer,
+                    max_lr=self.lr,
+                    steps_per_epoch=steps_per_epoch,
+                    epochs=self.trainer.max_epochs,
+                )
 
             else:
                 raise NotImplementedError
 
             return [optimizer], [scheduler]
-

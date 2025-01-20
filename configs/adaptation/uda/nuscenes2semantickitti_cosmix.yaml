@@ -8,7 +8,7 @@ source_dataset:
   name: "nuScenes"
   dataset_path: "data/nuscenes"
   mapping_path: "_resources/nuscenes_ns2sk.yaml"
-  weights_path: "_weights/nuscenes2semantickitti_correct.npy"
+  weights_path: null
   target: null
   voxel_size: 0.05
   num_pts: 80000
@@ -32,15 +32,15 @@ masked_dataset:
   remove_overlap: false
 
 pipeline:
-  epochs: 3
+  epochs: 30
   steps: null
-  gpus: [0, 1]
+  gpus: [0]
   precision: 32
   seed: 1234
   save_dir: "experiments/cosmix/nuscenes/semantickitti"
 
   dataloader:
-    train_batch_size: 2
+    train_batch_size: 4
     val_batch_size: 8
     num_workers: 24
 
@@ -65,8 +65,8 @@ pipeline:
     offline: false
 
 adaptation:
-  student_checkpoint: "pretrained_models/nuscenes/semantickitti/pretrained_model.ckpt"
-  teacher_checkpoint: "pretrained_models/nuscenes/semantickitti/pretrained_model.ckpt"
+  student_checkpoint: null
+  teacher_checkpoint: null
   filtering: "confidence"
   adaptive_weight: false
   oracle_rate: 0.0

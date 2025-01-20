@@ -15,7 +15,7 @@ class SemanticKITTIDataset(BaseDataset):
         self,
         version: str = "full",
         phase: str = "train",
-        dataset_path: str = "/data/semantickitti/sequences",
+        dataset_path: str = "data/semantickitti/sequences",
         mapping_path: str = "_resources/semantic-kitti.yaml",
         weights_path: str = None,
         voxel_size: float = 0.05,

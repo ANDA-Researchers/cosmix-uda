@@ -8,6 +8,30 @@ from utils.datasets.synlidar import SynLiDARDataset
 from utils.datasets.nuscenes import NuScenesDataset
 
 
+# synlidar2kitti = np.array(
+#     [
+#         "car",
+#         "bicycle",
+#         "motorcycle",
+#         "truck",
+#         "other-vehicle",
+#         "person",
+#         "bicyclist",
+#         "motorcyclist",
+#         "road",
+#         "parking",
+#         "sidewalk",
+#         "other-ground",
+#         "building",
+#         "fence",
+#         "vegetation",
+#         "trunk",
+#         "terrain",
+#         "pole",
+#         "traffic-sign",
+#     ]
+# )
+
 synlidar2kitti = np.array(
     [
         "car",
@@ -16,19 +40,10 @@ synlidar2kitti = np.array(
         "truck",
         "other-vehicle",
         "person",
-        "bicyclist",
-        "motorcyclist",
         "road",
-        "parking",
         "sidewalk",
-        "other-ground",
-        "building",
-        "fence",
-        "vegetation",
-        "trunk",
         "terrain",
-        "pole",
-        "traffic-sign",
+        "vegetation",
     ]
 )
 

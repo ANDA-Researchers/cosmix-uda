@@ -15,7 +15,7 @@ class NuScenesDataset(BaseDataset):
         self,
         version: str = "full",
         phase: str = "train",
-        dataset_path: str = "/data/nuscenes",
+        dataset_path: str = "data/nuscenes",
         mapping_path: str = "_resources/nuscenes_ns2sk.yaml",
         weights_path: str = None,
         voxel_size: float = 0.05,
@@ -43,18 +43,18 @@ class NuScenesDataset(BaseDataset):
             weights_path=weights_path,
         )
 
-        with open(mapping_path, "r") as stream:
+        with open(os.path.join(ABSOLUTE_PATH, mapping_path), "r") as stream:
             nuscenesyaml = yaml.safe_load(stream)
 
         if self.version == "full":
             self.split = {
                 "train": nuscenesyaml["split"]["train"],
-                "validation": nuscenesyaml["split"]["validation"],
+                "validation": nuscenesyaml["split"]["valid"],
             }
         elif self.version == "mini":
             self.split = {
                 "train": nuscenesyaml["split"]["mini_train"],
-                "validation": nuscenesyaml["split"]["mini_val"],
+                "validation": nuscenesyaml["split"]["mini_valid"],
             }
         elif self.version == "sequential":
             self.split = {
@@ -79,7 +79,11 @@ class NuScenesDataset(BaseDataset):
 
         for sequence in self.split[self.phase]:
             num_frames = len(
-                os.listdir(os.path.join(self.dataset_path, sequence, "labels"))
+                os.listdir(
+                    os.path.join(
+                        self.dataset_path, "sequences", f"{sequence:04d}", "labels"
+                    )
+                )
             )
 
             for f in np.arange(num_frames):
@@ -100,7 +104,10 @@ class NuScenesDataset(BaseDataset):
                 self.pcd_path.append(pcd_path)
                 self.label_path.append(label_path)
 
-        self.color_map = np.array(nuscenesyaml["color_map"]) / 255.0
+        self.color_map = (
+            np.array([color for color, _ in sorted(nuscenesyaml["color_map"].items())])
+            / 255.0
+        )
 
     def __len__(self):
         return len(self.pcd_path)
